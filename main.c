@@ -11,12 +11,13 @@
 void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 {
 	char c;
-	static int step = 1;
+	int delay = 40;
+	static int step = 0;
 
-	init_pair(1, COLOR_RED, COLOR_BLACK);
-	init_pair(2, COLOR_GREEN, COLOR_BLACK);
-	init_pair(3, 9, COLOR_BLACK);
-	init_pair(4, 7, COLOR_BLACK);
+	init_pair(1, COLOR_RED, -1);
+	init_pair(2, COLOR_GREEN, -1);
+	init_pair(3, 9, -1);
+	init_pair(4, 7, -1);
 
 	erase();
 	move(0, 0);
@@ -59,23 +60,34 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 
 	move(LINES-3, 0);
 	attron(COLOR_PAIR(2));
+	attron(A_BOLD);
 	printw("Press `r` to automatically step through.\n");
-	printw("Press `r` again to resume manual stepping.\n");
+	printw("Press `r` again to cycle speeds..\n");
 	printw("Press any key to continue.\n");
+	if (step == 0)
+		mvprintw(LINES-1, COLS-15, "Manual stepping");
+	else
+		mvprintw(LINES-1, COLS-14, "Autostep (%d/4)", step);
+	attroff(A_BOLD);
 	attroff(COLOR_PAIR(2));
 	refresh();
 
-	if (step) {
+	if (step == 0) {
 		timeout(-1);
 		c = getch();
-		if (c == 'r')
-			step = 0;
+		if (c == 'r') {
+			step = 1;
+		}
 	}
 	else {
-		timeout(35);
+		timeout(delay/step);
 		c = getch();
-		if (c == 'r')
-			step = 1;
+		if (c == 'r') {
+			if (step == 4)
+				step = 0;
+			else
+				step += 1;
+		}
 	}
 }
 
@@ -114,6 +126,7 @@ int main(int argc, char *argv[])
 
 	if (debug) {
 		initscr();
+		use_default_colors();
 		start_color();
 		curs_set(0);
 	}
@@ -165,6 +178,7 @@ int main(int argc, char *argv[])
 				endwin();
 			else {
 				initscr();
+				use_default_colors();
 				start_color();
 			}
 
