@@ -3,30 +3,80 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ncurses.h>
+
+//static int step = 1;
 
 /* Print a map of the field, displaying an 'x' for our current position. */
 void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 {
-	printf("\x1b[2J\x1b[H");
-	printf("Tape index:\t%d\n", ti);
-	printf("Current cell:\t%d\n", tv);
-	printf("Direction:\t%c\n", d);
-	printf("XY: %d/%d\n", x, y);
+	char c;
+	static int step = 1;
 
-	for (int i = 0; i < dbf.num_lines; i++) {
+	init_pair(1, COLOR_RED, COLOR_BLACK);
+	init_pair(2, COLOR_GREEN, COLOR_BLACK);
+	init_pair(3, 9, COLOR_BLACK);
+	init_pair(4, 7, COLOR_BLACK);
+
+	erase();
+	move(0, 0);
+
+	attron(COLOR_PAIR(2));
+	printw("Tape Index:\n");
+	printw("Current Cell:\n");
+	printw("Direction:\n");
+	printw("Coords (x, y):");
+	attroff(COLOR_PAIR(2));
+
+	attron(COLOR_PAIR(1));
+	attron(A_BOLD);
+	mvprintw(0, 17, "%d", ti);
+	mvprintw(1, 17, "%d", tv);
+	mvprintw(2, 17, "%c", d);
+	mvprintw(3, 17, "(%d, %d)", x, y);
+	attroff(A_BOLD);
+	attroff(COLOR_PAIR(1));
+
 	/* Scrolling window debug, useful for programs larger than 1 page */
-	//for (int i = (y - 15 > 0) ? y - 15 : 0; i < y + 15; i++) {
+	move(4, 0);
+	for (int i = (dbf.num_lines > LINES-10) ? y/2 : 0; i < dbf.num_lines; i++) {
 		for (int n = 0; n < dbf.line_len; n++) {
-			if (i == y && n == x)
-				putchar('x');
-			else
-				putchar(dbf.lines[i][n]);
+			if (i == y && n == x) {
+				attron(COLOR_PAIR(3));
+				attron(A_BOLD);
+				addch('X');
+				attroff(COLOR_PAIR(3));
+				attroff(A_BOLD);
+			}
+			else {
+				attron(COLOR_PAIR(4));
+				addch(dbf.lines[i][n]);
+				attroff(COLOR_PAIR(4));
+			}
 		}
-		putchar('\n');
+		addch('\n');
 	}
 
-	printf("\nPress any key to continue.\n");
-	getchar();
+	move(LINES-3, 0);
+	attron(COLOR_PAIR(2));
+	printw("Press `r` to automatically step through.\n");
+	printw("Press `r` again to resume manual stepping.\n");
+	printw("Press any key to continue.\n");
+	attroff(COLOR_PAIR(2));
+	refresh();
+
+	if (step) {
+		timeout(-1);
+		c = getch();
+		if (c == 'r')
+			step = 0;
+	}
+	else {
+		timeout(35);
+		c = getch();
+		if (c == 'r')
+			step = 1;
+	}
 }
 
 int main(int argc, char *argv[])
@@ -61,6 +111,12 @@ int main(int argc, char *argv[])
 	int y = 0;
 	char d = '>';
 	char t;
+
+	if (debug) {
+		initscr();
+		start_color();
+		curs_set(0);
+	}
 
 	DEBUG_PRINT("Loop begin.\n");
 	for (;;) {
@@ -103,8 +159,17 @@ int main(int argc, char *argv[])
 			putchar(tape[pointer]);
 		if (t == ',')
 			tape[pointer] = getchar();
-		if (t == 'd')
+		if (t == 'd') {
+			//debug = !debug;
+			if (debug)
+				endwin();
+			else {
+				initscr();
+				start_color();
+			}
+
 			debug = !debug;
+		}
 		if (t == 'e')
 			break;
 
@@ -124,6 +189,10 @@ int main(int argc, char *argv[])
 
 	DEBUG_PRINT("Freeing...\n");
 	free_dbf(dbf); /* from file.c */
+	if (debug) {
+		curs_set(1);
+		endwin();
+	}
 	DEBUG_PRINT("Done.\n");
 
 	return 0;
