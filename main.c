@@ -11,7 +11,7 @@
 void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 {
 	char c;
-	int delay = 40;
+	int delay = 35;
 	static int step = 0;
 
 	init_pair(1, COLOR_RED, -1);
