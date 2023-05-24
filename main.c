@@ -5,7 +5,7 @@
 #include <string.h>
 #include <ncurses.h>
 
-//static int step = 1;
+#define MAX_STEP 4
 
 /* Print a map of the field, displaying an 'x' for our current position. */
 void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
@@ -67,7 +67,7 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 	if (step == 0)
 		mvprintw(LINES-1, COLS-15, "Manual stepping");
 	else
-		mvprintw(LINES-1, COLS-14, "Autostep (%d/4)", step);
+		mvprintw(LINES-1, COLS-14, "Autostep (%d/%d)", step, MAX_STEP);
 	attroff(A_BOLD);
 	attroff(COLOR_PAIR(2));
 	refresh();
@@ -83,7 +83,7 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 		timeout(delay/step);
 		c = getch();
 		if (c == 'r') {
-			if (step == 4)
+			if (step == MAX_STEP)
 				step = 0;
 			else
 				step += 1;
