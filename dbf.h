@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 
-#define TAPE_LEN 4096 // change this to increase/decrase tape length
-#define dbf_default { 0, 0, NULL, 0 }
+#define TAPE_LEN 30000 // change this to increase/decrase tape length
+//#define dbf_default { 0, 0, NULL, 0 }
 #define DEBUG 0
 
 #if defined(DEBUG) && DEBUG > 0
@@ -14,12 +14,18 @@
  #define DEBUG_PRINT(fmt, args...) /* Don't do anything in release builds */
 #endif
 
+typedef enum {
+	SUCCESS,
+	FILE_ERROR,
+	MEM_ERROR,
+	OTHER_ERROR
+} Status;
 
 struct dbf_t {
 	int num_lines;
 	int line_len;
 	char **lines;
-	int error;	/* 0 = no error, 1 = file error, 2 = memory error */
+	Status status;
 };
 
 int count_lines(FILE *);

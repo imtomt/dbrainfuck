@@ -4,16 +4,30 @@
 
 #include "dbf.h"
 
-/* Return the number of lines from a file given as argument */
+/*
+ * Initialize a new dbf struct.
+ */
+struct dbf_t init_dbf()
+{
+	struct dbf_t dbf;
+	dbf.num_lines = 0;
+	dbf.line_len = 0;
+	dbf.lines = NULL;
+	dbf.status = SUCCESS;
+
+	return dbf;
+}
+
+/*
+ * Return the number of lines from a file given as argument */
 int count_lines(FILE *fp)
 {
 	int lines = 0;
 	int ch = 0;
 
-	while (!feof(fp)) {
-		ch = fgetc(fp);
+	for (ch = getc(fp); ch != EOF; ch = getc(fp)) {
 		if (ch == '\n')
-			lines++;
+			lines += 1;
 	}
 
 	rewind(fp);
@@ -40,11 +54,11 @@ int free_dbf(struct dbf_t dbf)
  * through lines. */
 struct dbf_t read_dbf_from_file(char *file)
 {
-	struct dbf_t result = dbf_default;
+	struct dbf_t result = init_dbf();
 	FILE *fp = fopen(file, "r");
 	if (fp == NULL) {
-		DEBUG_PRINT("Error 1\n");
-		result.error = 1;
+		DEBUG_PRINT("File error\n");
+		result.status = FILE_ERROR;
 		return result;
 	}
 
@@ -54,8 +68,8 @@ struct dbf_t read_dbf_from_file(char *file)
 	char **lines = (char **)malloc(num_lines * sizeof(char *));
 
 	if (lines == NULL) {
-		DEBUG_PRINT("Error 2\n");
-		result.error = 2;
+		DEBUG_PRINT("Malloc error\n");
+		result.status = MEM_ERROR;
 		return result;
 	}
 
@@ -64,62 +78,61 @@ struct dbf_t read_dbf_from_file(char *file)
 	int maxlen = 0;
 
 	DEBUG_PRINT("Reading lines\n");
-	/* Read each line from the file into an array */
+
+	/* Read each line of the file to get the longest line length, so we can
+	   pad each line in the future. */
 	for (int i = 0; i < num_lines; i++) {
-		/* first it gets read into buf, to determine the length of the line
-		 * so enough space can be allocated. */
 		if (fgets(buf, sizeof(buf), fp) != NULL) {
-			DEBUG_PRINT("Not null.\n");
 			len = strlen(buf);
-
-			/* Remove newline if present */
-			if (buf[len-1] == '\n') {
-				DEBUG_PRINT("Newline (buf[%d-1] == '\\n')\n", len);
-				buf[len-1] = '\0';
-			}
-
-			DEBUG_PRINT("malloc(%d);\n", (len+1)*sizeof(char));
-			/* allocate proper amount of space per line */
-			lines[i] = (char *)malloc((len + 1) * sizeof(char));
-			if (lines[i] == NULL) {
-				DEBUG_PRINT("Error 2\n");
-				result.error = 2;
-				return result;
-			}
-			strcpy(lines[i], buf);
-
-			/* Keep track of maximum line length */
 			if (len > maxlen)
 				maxlen = len;
 		}
+		else if (feof(fp)) {
+			break;
+		}
+		else {
+			DEBUG_PRINT("File error\n");
+			result.status = FILE_ERROR;
+			return result;
+		}
 	}
-	fclose(fp);
 
-	/* Pad all lines to be same length */
-	DEBUG_PRINT("Padding lines\n");
+	// Rewind the file to start at the beginning
+	fseek(fp, 0, SEEK_SET);
+
+	/* Pad each line to the same length, allocating just enough memory. */
 	for (int i = 0; i < num_lines; i++) {
-		DEBUG_PRINT("len = %d\n", strlen(lines[i]));
-		len = strlen(lines[i]);
+		if (fgets(buf, sizeof(buf), fp) != NULL) {
+			len = strlen(buf);
 
-		DEBUG_PRINT("%d < %d? %s\n", len, maxlen, (len < maxlen) ? "true" : "false");
-		/* the current line length is shorter than the longest line... */
-		if (len < maxlen) {
-			/* ...realloc enough space to be filled with spaces. */
-			lines[i] = realloc(lines[i], maxlen * sizeof(char));
-			if (lines[i] == NULL) {
-				DEBUG_PRINT("Error 2\n");
-				result.error = 2;
+			/* Replace newlines with NULL, we don't want \n in our
+			   actual tape. */
+			if (buf[len-1] == '\n')
+				buf[len-1] = ' ';
+
+			lines[i] = (char *)malloc((maxlen + 1) * sizeof(char));
+			if (lines == NULL) {
+				DEBUG_PRINT("malloc error\n");
+				result.status = MEM_ERROR;
 				return result;
 			}
+
+			strncpy(lines[i], buf, len + 1);
+
+			/* Pad the lines to all the same length, using spaces */
+			for (int c = len; c < maxlen; c++)
+				lines[i][c] = ' ';
+
+			lines[i][maxlen] = '\0';
 		}
-
-		/* add spaces to the end of the line, until the max length */
-		for (int c = len; c < maxlen; c++)
-			lines[i][c] = ' ';
-
-		DEBUG_PRINT("Done.\n");
-		lines[i][maxlen] = '\0';
+		else {
+			DEBUG_PRINT("Unexpected EOF\n");
+			result.status = FILE_ERROR;
+			return result;
+		}
 	}
+
+	fclose(fp);
 
 	/* Populate the dbf struct */
 	result.num_lines = num_lines;

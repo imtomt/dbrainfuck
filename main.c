@@ -1,5 +1,6 @@
 #include "dbf.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +27,8 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 	printw("Tape Index:\n");
 	printw("Current Cell:\n");
 	printw("Direction:\n");
-	printw("Coords (x, y):");
+	printw("Coords (x, y):\n");
+	printw("Output:");
 	attroff(COLOR_PAIR(2));
 
 	attron(COLOR_PAIR(1));
@@ -35,11 +37,26 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 	mvprintw(1, 17, "%d", tv);
 	mvprintw(2, 17, "%c", d);
 	mvprintw(3, 17, "(%d, %d)", x, y);
+
+	/* If we try to print normally while in debug mode with ncurses enabled,
+	 * it fucks up the formatting, and skews everything. Unfortunately we
+	 * have to handle '.' differently if we are in debug mode. */
+	if (dbf.lines[y][x] == '.') {
+		// print the character representation of the cell if able...
+		if (isprint(tv))
+			mvprintw(4, 17, "'%c'", tv);
+		// ... otherwise print the hex value
+		else
+			mvprintw(4, 17, "0x%X", tv);
+	}
+	else
+		mvprintw(4, 17, "(none)");
+
 	attroff(A_BOLD);
 	attroff(COLOR_PAIR(1));
 
 	/* Scrolling window debug, useful for programs larger than 1 page */
-	move(4, 0);
+	move(5, 0);
 	for (int i = (dbf.num_lines > LINES-10) ? y/2 : 0; i < dbf.num_lines; i++) {
 		for (int n = 0; n < dbf.line_len; n++) {
 			if (i == y && n == x) {
@@ -111,8 +128,9 @@ int main(int argc, char *argv[])
 	/* from file.c
 	 * Read from the first argument into a dbf_t struct */
 	dbf = read_dbf_from_file(argv[1]);
-	if (dbf.error != 0) {
-		printf("An error occured. (%d)\n", dbf.error);
+	if (dbf.status != SUCCESS) {
+		printf("An error occured. (%d)\n", dbf.status);
+		free_dbf(dbf);
 		return 1;
 	}
 
@@ -121,7 +139,7 @@ int main(int argc, char *argv[])
 	int pointer = 0;
 	int x = 0;
 	int y = 0;
-	char d = '>';
+	char direction = '>';
 	char t;
 
 	if (debug) {
@@ -131,6 +149,7 @@ int main(int argc, char *argv[])
 		curs_set(0);
 	}
 
+	/* Main logic behind directional brainfuck :3 */
 	DEBUG_PRINT("Loop begin.\n");
 	for (;;) {
 		DEBUG_PRINT("Check bounds\n");
@@ -148,32 +167,49 @@ int main(int argc, char *argv[])
 			break;
 		}
 
+		/* TODO: Would switch case be better here? */
 		DEBUG_PRINT("dbf.lines[y][x] = '%c'\n", dbf.lines[y][x]);
 		t = dbf.lines[y][x];
 		/* Change direction */
 		if (t == '^' || t == 'v' || t == '>' || t == '<')
-			d = t;
+			direction = t;
 		/* Conditional. If 0, direction becomes ^, otherwise v. */
 		if (t == '?') {
 			if (tape[pointer] == 0)
-				d = '^';
+				direction = '^';
 			else
-				d = 'v';
+				direction = 'v';
 		}
-		if (t == '}')
-			pointer += 1;
-		if (t == '{')
-			pointer -= 1;
+		if (t == '}') {
+			if (pointer >= TAPE_LEN - 1)
+				pointer = 0;
+			else
+				pointer += 1;
+		}
+		if (t == '{') {
+			if (pointer == 0)
+				pointer = TAPE_LEN - 1;
+			else
+				pointer -= 1;
+		}
 		if (t == '+')
 			tape[pointer] += 1;
 		if (t == '-')
 			tape[pointer] -= 1;
-		if (t == '.')
-			putchar(tape[pointer]);
+		if (t == '.') {
+			/* Printing while in debug mode screws up the whole debug view,
+			   offsetting the rest of the program display, so we'll let
+			   dbfbug() handle printing while in debug mode */
+			if (!debug)
+				putchar(tape[pointer]);
+		}
 		if (t == ',')
 			tape[pointer] = getchar();
+
+		/* Toggle debug mode. If we're currently in debug mode, a 'd'
+		 * in the file will disable it, and vice versa. We should set
+		 * up and end ncurses as needed. */
 		if (t == 'd') {
-			//debug = !debug;
 			if (debug)
 				endwin();
 			else {
@@ -188,17 +224,17 @@ int main(int argc, char *argv[])
 			break;
 
 		/* Move forward one space in whichever direction. */
-		if (d == '^')
+		if (direction == '^')
 			y -= 1;
-		if (d == 'v')
+		if (direction == 'v')
 			y += 1;
-		if (d == '>')
+		if (direction == '>')
 			x += 1;
-		if (d == '<')
+		if (direction == '<')
 			x -= 1;
 
 		if (debug)
-			dbfbug(dbf, x, y, pointer, tape[pointer], d);
+			dbfbug(dbf, x, y, pointer, tape[pointer], direction);
 	}
 
 	DEBUG_PRINT("Freeing...\n");
