@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	 * Read from the first argument into a dbf_t struct */
 	dbf = read_dbf_from_file(argv[1]);
 	if (dbf.status != SUCCESS) {
-		printf("An error occured. (%d)\n", dbf.status);
+		printf("An error occured.\nError code: %d\n", dbf.status);
 		free_dbf(dbf);
 		return 1;
 	}
@@ -142,6 +142,8 @@ int main(int argc, char *argv[])
 	char direction = '>';
 	char t;
 
+	/* Set up ncurses if the debug flag is passed on command line. */
+	DEBUG_PRINT("Initializing ncurses\n");
 	if (debug) {
 		initscr();
 		use_default_colors();
@@ -152,64 +154,76 @@ int main(int argc, char *argv[])
 	/* Main logic behind directional brainfuck :3 */
 	DEBUG_PRINT("Loop begin.\n");
 	for (;;) {
-		DEBUG_PRINT("Check bounds\n");
-		DEBUG_PRINT("y > dbf.num_lines - 1 || y < 0 || x > dbf.line_len - 1|| x < 0\n");
-		DEBUG_PRINT("%d > %d || %d < 0 || %d > %d || %d < 0\n",
-			y, dbf.num_lines - 1, y, x, dbf.line_len - 1, x);
-
-		/* We need - 1, because it will attempt to access out of bounds due to arrays
-		 * being 0-indexed. This causes a segmentation fault. */
-		if (y > dbf.num_lines - 1 || y < 0 || x > dbf.line_len - 1 || x < 0) {
+		/* We need - 1, because it will attempt to access out of bounds
+		 * due to arrays being 0-indexed. This causes a segfault. */
+		if (y > dbf.num_lines - 1 ||
+		    y < 0 ||
+		    x > dbf.line_len - 1 ||
+		    x < 0) {
 			DEBUG_PRINT("*** Outta bounds:\n");
 			DEBUG_PRINT("y: %d\n", y);
 			DEBUG_PRINT("x: %d\n", x);
-			DEBUG_PRINT("direction: %c\n", d);
+			DEBUG_PRINT("direction: %c\n", direction);
 			break;
 		}
 
-		/* TODO: Would switch case be better here? */
-		DEBUG_PRINT("dbf.lines[y][x] = '%c'\n", dbf.lines[y][x]);
 		t = dbf.lines[y][x];
-		/* Change direction */
-		if (t == '^' || t == 'v' || t == '>' || t == '<')
+
+		/* 'e' allows the dbf program to specify an exit point, which is
+		 * pretty cool. */
+		if (t == 'e')
+			break;
+
+		/* Interpret directional brainfuck :3 */
+		switch (t) {
+		case '^':
+		case 'v':
+		case '>':
+		case '<':
 			direction = t;
-		/* Conditional. If 0, direction becomes ^, otherwise v. */
-		if (t == '?') {
+			break;
+		/* Conditional. If the current cell is 0, direction becomes,
+		 * otherwise v. */
+		case '?':
 			if (tape[pointer] == 0)
 				direction = '^';
 			else
 				direction = 'v';
-		}
-		if (t == '}') {
+			break;
+		case '}':
 			if (pointer >= TAPE_LEN - 1)
 				pointer = 0;
 			else
 				pointer += 1;
-		}
-		if (t == '{') {
+			break;
+		case '{':
 			if (pointer == 0)
 				pointer = TAPE_LEN - 1;
 			else
 				pointer -= 1;
-		}
-		if (t == '+')
+			break;
+		case '+':
 			tape[pointer] += 1;
-		if (t == '-')
+			break;
+		case '-':
 			tape[pointer] -= 1;
-		if (t == '.') {
-			/* Printing while in debug mode screws up the whole debug view,
-			   offsetting the rest of the program display, so we'll let
-			   dbfbug() handle printing while in debug mode */
+			break;
+		case '.':
+			/* Printing while in debug mode screws up the whole
+			   debug view, offsetting the rest of the screen, so
+			   dbfbug() will handle printing while in debug mode */
 			if (!debug)
 				putchar(tape[pointer]);
-		}
-		if (t == ',')
-			tape[pointer] = getchar();
+			break;
+		case ',':
+			if (t == ',')
+				tape[pointer] = getchar();
+			break;
 
+		case 'd':
 		/* Toggle debug mode. If we're currently in debug mode, a 'd'
 		 * in the file will disable it, and vice versa. We should set
 		 * up and end ncurses as needed. */
-		if (t == 'd') {
 			if (debug)
 				endwin();
 			else {
@@ -219,19 +233,25 @@ int main(int argc, char *argv[])
 			}
 
 			debug = !debug;
-		}
-		if (t == 'e')
 			break;
+		default:
+			break;
+		}
 
 		/* Move forward one space in whichever direction. */
 		if (direction == '^')
 			y -= 1;
-		if (direction == 'v')
+		else if (direction == 'v')
 			y += 1;
-		if (direction == '>')
+		else if (direction == '>')
 			x += 1;
-		if (direction == '<')
+		else if (direction == '<')
 			x -= 1;
+		else {
+			DEBUG_PRINT("Unexpected direction: '%c' (0x%x)\n",
+				    direction, direction);
+			break;
+		}
 
 		if (debug)
 			dbfbug(dbf, x, y, pointer, tape[pointer], direction);
@@ -239,6 +259,7 @@ int main(int argc, char *argv[])
 
 	DEBUG_PRINT("Freeing...\n");
 	free_dbf(dbf); /* from file.c */
+	/* End ncurses shit */
 	if (debug) {
 		curs_set(1);
 		endwin();

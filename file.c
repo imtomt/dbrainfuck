@@ -57,7 +57,7 @@ struct dbf_t read_dbf_from_file(char *file)
 	struct dbf_t result = init_dbf();
 	FILE *fp = fopen(file, "r");
 	if (fp == NULL) {
-		DEBUG_PRINT("File error\n");
+		DEBUG_PRINT("*** Could not open file %s.\n", file);
 		result.status = FILE_ERROR;
 		return result;
 	}
@@ -68,7 +68,7 @@ struct dbf_t read_dbf_from_file(char *file)
 	char **lines = (char **)malloc(num_lines * sizeof(char *));
 
 	if (lines == NULL) {
-		DEBUG_PRINT("Malloc error\n");
+		DEBUG_PRINT("*** Could not allocate memory.\n");
 		result.status = MEM_ERROR;
 		return result;
 	}
@@ -91,7 +91,7 @@ struct dbf_t read_dbf_from_file(char *file)
 			break;
 		}
 		else {
-			DEBUG_PRINT("File error\n");
+			DEBUG_PRINT("*** File error\n");
 			result.status = FILE_ERROR;
 			return result;
 		}
@@ -112,7 +112,7 @@ struct dbf_t read_dbf_from_file(char *file)
 
 			lines[i] = (char *)malloc((maxlen + 1) * sizeof(char));
 			if (lines == NULL) {
-				DEBUG_PRINT("malloc error\n");
+				DEBUG_PRINT("*** Could not allocate memory.\n");
 				result.status = MEM_ERROR;
 				return result;
 			}
@@ -126,7 +126,7 @@ struct dbf_t read_dbf_from_file(char *file)
 			lines[i][maxlen] = '\0';
 		}
 		else {
-			DEBUG_PRINT("Unexpected EOF\n");
+			DEBUG_PRINT("*** Unexpected EOF\n");
 			result.status = FILE_ERROR;
 			return result;
 		}
@@ -139,6 +139,5 @@ struct dbf_t read_dbf_from_file(char *file)
 	result.line_len = maxlen;
 	result.lines = lines;
 
-	DEBUG_PRINT("All set.\n");
 	return result;
 }
