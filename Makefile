@@ -1,2 +1,2 @@
 all:
-	gcc file.c main.c -o dbf -lncurses
+	gcc-14 file.c main.c -o dbf -lncurses
