@@ -5,6 +5,7 @@
 //#include <stdlib.h>
 //#include <string.h>
 #include <ncurses.h>
+#include <unistd.h>
 
 #define MAX_STEP 4
 
@@ -108,26 +109,46 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
     }
 }
 
+void usage(const char *name)
+{
+    fprintf(stderr, "Usage: %s [-d] file", name);
+}
+
 int main(int argc, char *argv[])
 {
     struct dbf_t dbf;
     int debug;
+    int ch;
 
     if (argc == 1) {
-        printf("Usage: ./%s [file] (-d)", argv[0]);
+        usage(argv[0]);
         return 1;
     }
 
-    /* TODO: *actually* check if argv[2] is "-d", currently any
-     * option will enable debug mode. */
-    if (argc > 2)
-        debug = 1;
-    else
-        debug = 0;
+    while ((ch = getopt(argc, argv, "hd")) != -1) {
+        printf("ch: %c\n", ch);
+        switch (ch) {
+        case 'h':
+            usage(argv[0]);
+            return 0;
+        case 'd':
+            debug = 1;
+            break;
+        case '?':
+        default:
+            usage(argv[0]);
+            return 1;
+        }
+    }
+
+    if (argc == optind) {
+        usage(argv[0]);
+        return 1;
+    }
 
     /* from file.c
      * Read from the first argument into a dbf_t struct */
-    dbf = read_dbf_from_file(argv[1]);
+    dbf = read_dbf_from_file(argv[optind]);
     if (dbf.status != SUCCESS) {
         printf("An error occured.\nError code: %d\n", dbf.status);
         free_dbf(dbf);
