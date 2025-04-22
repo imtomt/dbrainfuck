@@ -117,7 +117,7 @@ void usage(const char *name)
 int main(int argc, char *argv[])
 {
     struct dbf_t dbf;
-    int debug;
+    int debug = 0;
     int ch;
 
     if (argc == 1) {
