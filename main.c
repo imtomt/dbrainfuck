@@ -126,7 +126,6 @@ int main(int argc, char *argv[])
     }
 
     while ((ch = getopt(argc, argv, "hd")) != -1) {
-        printf("ch: %c\n", ch);
         switch (ch) {
         case 'h':
             usage(argv[0]);
