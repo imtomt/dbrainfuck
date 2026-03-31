@@ -20,15 +20,30 @@ The program runs exactly how it looks: it can read up, or down, or left, or righ
 ### Loops? Conditionals?
 Because `[` and `]` have been removed, you have to get creative with loops. You would write `[-]` as:
 ```
-> v
->-?>
+v>  e
+>?>-?
+ >^ <
+```
+This has some unnecessary complexity, since brainfuck's `[` checks if the current cell is 0, and skips the loop if it is. You could also simplify it like this, if you don't care about the initial cell value:
+```
+v e
+>-?
 ^ <
+```
+Or even like any of these, if you just want an infinite loop:
+```
+>-<
+```
+```
+v <
+>-^
 ```
 Likewise, a simple `cat` implementation in brainfuck would look like `,+[-.,+]`. In directional brainfuck, it would be:
 ```
-v       <
-> +>-,.+?
-   ^    <
+v       
+  e     e
+>+?>-,.+?
+  >^    <
 ```
 
 A lot of examples can be found in the `examples/` directory.
