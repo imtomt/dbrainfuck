@@ -261,7 +261,6 @@ int main(int argc, char *argv[])
         if (y > dbf.num_lines - 1 || y < 0 ||
             x > dbf.line_len - 1 || x < 0)
         {
-            warnx("out of bounds: %dx%d, dir: %c", x, y, direction);
             break;
         }
 
