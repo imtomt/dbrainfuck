@@ -2,12 +2,10 @@
 
 #include <ctype.h>
 #include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
 #include <ncurses.h>
 #include <unistd.h>
 
-#define MAX_STEP 4
+#define MAX_STEP 6
 
 /* Print a map of the field, displaying an 'x' for our current position. */
 void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
@@ -173,20 +171,7 @@ int main(int argc, char *argv[])
 
     /* Main logic behind directional brainfuck :3 */
     DEBUG_PRINT("Loop begin.\n");
-    for (;;) {
-        /* We need - 1, because it will attempt to access out of bounds
-         * due to arrays being 0-indexed. This causes a segfault. */
-        if (y > dbf.num_lines - 1 ||
-                y < 0 ||
-                x > dbf.line_len - 1 ||
-                x < 0) {
-            DEBUG_PRINT("*** Outta bounds:\n");
-            DEBUG_PRINT("y: %d\n", y);
-            DEBUG_PRINT("x: %d\n", x);
-            DEBUG_PRINT("direction: %c\n", direction);
-            break;
-        }
-
+    for (; y >= 0 && y < dbf.num_lines && x >= 0 && x < dbf.line_len;) {
         t = dbf.lines[y][x];
 
         /* 'e' allows the dbf program to specify an exit point, which is
@@ -270,6 +255,18 @@ int main(int argc, char *argv[])
         else {
             DEBUG_PRINT("Unexpected direction: '%c' (0x%x)\n",
                     direction, direction);
+            break;
+        }
+
+        /* We need - 1, because it will attempt to access out of bounds
+         * due to arrays being 0-indexed. This causes a segfault. */
+        if (y > dbf.num_lines - 1 || y < 0 ||
+            x > dbf.line_len - 1 || x < 0)
+        {
+            DEBUG_PRINT("*** Outta bounds:\n");
+            DEBUG_PRINT("y: %d\n", y);
+            DEBUG_PRINT("x: %d\n", x);
+            DEBUG_PRINT("direction: %c\n", direction);
             break;
         }
 

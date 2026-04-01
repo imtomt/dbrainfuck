@@ -30,6 +30,12 @@ int count_lines(FILE *fp)
             lines += 1;
     }
 
+    // Check if file has content after the last \n
+    fseek(fp, -1, SEEK_END);
+    int last = fgetc(fp);
+    if (last != '\n' && last != EOF)
+        lines += 1;
+
     rewind(fp);
     return lines;
 }
@@ -79,9 +85,12 @@ struct dbf_t read_dbf_from_file(char *file)
 
     DEBUG_PRINT("Reading lines\n");
 
+    printf("num_lines: %d\n", num_lines);
+  
     /* Read each line of the file to get the longest line length, so we can
        pad each line in the future. */
-    for (int i = 0; i < num_lines; i++) {
+    for (int i = 0; i <= num_lines; i++) {
+        printf("reading line #%d/%d\n", i, num_lines);
         if (fgets(buf, sizeof(buf), fp) != NULL) {
             len = strlen(buf);
             if (len > maxlen)
