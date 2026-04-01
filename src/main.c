@@ -1,5 +1,6 @@
 #include "dbf.h"
 
+#include <err.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <ncurses.h>
@@ -152,7 +153,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    DEBUG_PRINT("Initializing vars\n");
     char tape[TAPE_LEN] = { 0 }; /* TAPE_LEN from dbf.h */
     int pointer = 0;
     int x = 0;
@@ -161,7 +161,6 @@ int main(int argc, char *argv[])
     char t;
 
     /* Set up ncurses if the debug flag is passed on command line. */
-    DEBUG_PRINT("Initializing ncurses\n");
     if (debug) {
         initscr();
         use_default_colors();
@@ -170,7 +169,6 @@ int main(int argc, char *argv[])
     }
 
     /* Main logic behind directional brainfuck :3 */
-    DEBUG_PRINT("Loop begin.\n");
     for (; y >= 0 && y < dbf.num_lines && x >= 0 && x < dbf.line_len;) {
         t = dbf.lines[y][x];
 
@@ -253,8 +251,8 @@ int main(int argc, char *argv[])
         else if (direction == '<')
             x -= 1;
         else {
-            DEBUG_PRINT("Unexpected direction: '%c' (0x%x)\n",
-                    direction, direction);
+            warnx("unexpected direction: %c (0x%x)",
+                  direction, direction);
             break;
         }
 
@@ -263,10 +261,7 @@ int main(int argc, char *argv[])
         if (y > dbf.num_lines - 1 || y < 0 ||
             x > dbf.line_len - 1 || x < 0)
         {
-            DEBUG_PRINT("*** Outta bounds:\n");
-            DEBUG_PRINT("y: %d\n", y);
-            DEBUG_PRINT("x: %d\n", x);
-            DEBUG_PRINT("direction: %c\n", direction);
+            warnx("out of bounds: %dx%d, dir: %c", x, y, direction);
             break;
         }
 
@@ -274,14 +269,12 @@ int main(int argc, char *argv[])
             dbfbug(dbf, x, y, pointer, tape[pointer], direction);
     }
 
-    DEBUG_PRINT("Freeing...\n");
     free_dbf(dbf); /* from file.c */
     /* End ncurses shit */
     if (debug) {
         curs_set(1);
         endwin();
     }
-    DEBUG_PRINT("Done.\n");
 
     return 0;
 }

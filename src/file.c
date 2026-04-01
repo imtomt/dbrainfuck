@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
 #include "dbf.h"
 
@@ -62,35 +63,24 @@ struct dbf_t read_dbf_from_file(char *file)
 {
     struct dbf_t result = init_dbf();
     FILE *fp = fopen(file, "r");
-    if (fp == NULL) {
-        DEBUG_PRINT("*** Could not open file %s.\n", file);
-        result.status = FILE_ERROR;
-        return result;
-    }
+    if (fp == NULL)
+        err(1, "could not open file %s", file);
 
     int num_lines = count_lines(fp);
     /* Allocate enough space for the number of lines. Each line
      * will be malloc'ed to fit the line length later. */
     char **lines = (char **)malloc(num_lines * sizeof(char *));
 
-    if (lines == NULL) {
-        DEBUG_PRINT("*** Could not allocate memory.\n");
-        result.status = MEM_ERROR;
-        return result;
-    }
+    if (lines == NULL)
+        err(1, "could not allocate memory");
 
     char buf[1024];
     int len = 0;
     int maxlen = 0;
 
-    DEBUG_PRINT("Reading lines\n");
-
-    printf("num_lines: %d\n", num_lines);
-  
     /* Read each line of the file to get the longest line length, so we can
        pad each line in the future. */
     for (int i = 0; i <= num_lines; i++) {
-        printf("reading line #%d/%d\n", i, num_lines);
         if (fgets(buf, sizeof(buf), fp) != NULL) {
             len = strlen(buf);
             if (len > maxlen)
@@ -100,8 +90,8 @@ struct dbf_t read_dbf_from_file(char *file)
             break;
         }
         else {
-            DEBUG_PRINT("*** File error\n");
-            result.status = FILE_ERROR;
+            warn("error reading file");
+            result.status = ERROR;
             return result;
         }
     }
@@ -120,11 +110,8 @@ struct dbf_t read_dbf_from_file(char *file)
                 buf[len-1] = ' ';
 
             lines[i] = (char *)malloc((maxlen + 1) * sizeof(char));
-            if (lines == NULL) {
-                DEBUG_PRINT("*** Could not allocate memory.\n");
-                result.status = MEM_ERROR;
-                return result;
-            }
+            if (lines == NULL)
+                err(1, "could not allocate memory");
 
             strncpy(lines[i], buf, len + 1);
 
@@ -135,8 +122,8 @@ struct dbf_t read_dbf_from_file(char *file)
             lines[i][maxlen] = '\0';
         }
         else {
-            DEBUG_PRINT("*** Unexpected EOF\n");
-            result.status = FILE_ERROR;
+            warn("error reading file");
+            result.status = ERROR;
             return result;
         }
     }
