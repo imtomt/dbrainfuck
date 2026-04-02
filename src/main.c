@@ -7,9 +7,10 @@
 #include <unistd.h>
 
 #define MAX_STEP 6
+char output = '\0';
 
 /* Print a map of the field, displaying an 'x' for our current position. */
-void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
+int dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
 {
     char c;
     int delay = 35;
@@ -37,20 +38,7 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
     mvprintw(1, 17, "%d", tv);
     mvprintw(2, 17, "%c", d);
     mvprintw(3, 17, "(%d, %d)", x, y);
-
-    /* If we try to print normally while in debug mode with ncurses enabled,
-     * it fucks up the formatting, and skews everything. Unfortunately we
-     * have to handle '.' differently if we are in debug mode. */
-    if (dbf.lines[y][x] == '.') {
-        // print the character representation of the cell if able...
-        if (isprint(tv))
-            mvprintw(4, 17, "'%c'", tv);
-        // ... otherwise print the hex value
-        else
-            mvprintw(4, 17, "0x%X", tv);
-    }
-    else
-        mvprintw(4, 17, "(none)");
+    mvprintw(4, 17, "%c", output);
 
     attroff(A_BOLD);
     attroff(COLOR_PAIR(1));
@@ -79,8 +67,9 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
     attron(COLOR_PAIR(2));
     attron(A_BOLD);
     printw("Press `r` to automatically step through.\n");
-    printw("Press `r` again to cycle speeds..\n");
-    printw("Press any key to continue.\n");
+    printw("Press `r` again to increase speed, `t` to decrease speed, "
+           "or `s` to resume manual.\n");
+    printw("Press any key to continue, or `q` to quit.\n");
     if (step == 0)
         mvprintw(LINES-1, COLS-15, "Manual stepping");
     else
@@ -89,23 +78,27 @@ void dbfbug(struct dbf_t dbf, int x, int y, int ti, int tv, char d)
     attroff(COLOR_PAIR(2));
     refresh();
 
-    if (step == 0) {
+    if (step == 0)
         timeout(-1);
-        c = getch();
-        if (c == 'r') {
-            step = 1;
-        }
-    }
-    else {
+    else
         timeout(delay/step);
-        c = getch();
-        if (c == 'r') {
-            if (step == MAX_STEP)
-                step = 0;
-            else
-                step += 1;
-        }
+
+    c = getch();
+    if (c == 'r') {
+        if (step < MAX_STEP)
+            step++;
+        else
+            step = 0;
+    } else if (c == 't') {
+        if (step > 0)
+            step--;
+    } else if (c == 's') {
+        step = 0;
+    } else if (c == 'q') {
+        return -1;
     }
+
+    return 0;
 }
 
 void usage(const char *name)
@@ -217,6 +210,12 @@ int main(int argc, char *argv[])
                dbfbug() will handle printing while in debug mode */
             if (!debug)
                 putchar(tape[pointer]);
+
+            /* We still want output in debug mode though, but only if it's
+             * actully printable. `output` will linger until a new printable
+             * character is printed. */
+            if (isprint(tape[pointer]))
+                output = tape[pointer];
             break;
         case ',':
             if (t == ',')
@@ -264,8 +263,10 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (debug)
-            dbfbug(dbf, x, y, pointer, tape[pointer], direction);
+        if (debug) {
+            if (dbfbug(dbf, x, y, pointer, tape[pointer], direction == -1))
+                break;
+        }
     }
 
     free_dbf(dbf); /* from file.c */
