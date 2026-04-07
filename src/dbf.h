@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #define TAPE_LEN 30000 // change this to increase/decrase tape length
-#define DEBUG 0
 
 typedef enum {
     SUCCESS,
